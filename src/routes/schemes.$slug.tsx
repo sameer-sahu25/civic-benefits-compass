@@ -1,0 +1,290 @@
+import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { schemeQuery } from "@/lib/queries";
+import { Button } from "@/components/ui/button";
+import {
+  ArrowLeft,
+  Building,
+  CheckCircle2,
+  ExternalLink,
+  Sparkles,
+  ShieldCheck,
+  Calendar,
+  Users,
+  Wallet,
+  Scale,
+  Cpu,
+  AlertTriangle,
+  ArrowRight,
+  Info,
+} from "lucide-react";
+
+export const Route = createFileRoute("/schemes/$slug")({
+  loader: async ({ context, params }) => {
+    const s = await context.queryClient.ensureQueryData(schemeQuery(params.slug));
+    if (!s) throw notFound();
+    return { title: s.title, summary: s.summary };
+  },
+  head: ({ loaderData }) => ({
+    meta: loaderData
+      ? [
+          { title: `${loaderData.title} — NAGSI Government Scheme` },
+          { name: "description", content: loaderData.summary },
+          { property: "og:title", content: loaderData.title },
+          { property: "og:description", content: loaderData.summary },
+        ]
+      : [{ title: "Scheme unavailable — NAGSI" }, { name: "robots", content: "noindex" }],
+  }),
+  notFoundComponent: () => (
+    <div className="mx-auto max-w-3xl px-4 py-20 text-center space-y-4">
+      <h2 className="text-2xl font-bold">Scheme Not Found</h2>
+      <p className="text-muted-foreground text-sm">The scheme you are looking for does not exist in the NAGSI directory.</p>
+      <Button asChild variant="outline">
+        <Link to="/schemes">Return to Scheme Directory</Link>
+      </Button>
+    </div>
+  ),
+  component: SchemePage,
+});
+
+function SchemePage() {
+  const { slug } = Route.useParams();
+  const { data: s } = useSuspenseQuery(schemeQuery(slug));
+  if (!s) return null;
+
+  const isAi =
+    s.title.toLowerCase().includes("ai") ||
+    s.slug.toLowerCase().includes("ai") ||
+    s.sector === "Cross-sector";
+
+  return (
+    <article className="mx-auto max-w-5xl px-4 py-8 sm:px-6 space-y-8">
+      {/* Top Breadcrumb & Navigation */}
+      <div className="flex items-center justify-between border-b pb-4">
+        <Link
+          to="/schemes"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-primary transition-colors"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          Back to all schemes
+        </Link>
+
+        <div className="flex items-center gap-2">
+          <Button asChild size="sm" variant="outline" className="gap-1.5 text-xs h-8">
+            <Link to="/eligibility">Check your eligibility</Link>
+          </Button>
+          <Button asChild size="sm" className="gap-1.5 text-xs h-8 bg-saffron text-saffron-foreground hover:bg-saffron/90">
+            <Link to="/assistant">
+              <Sparkles className="h-3.5 w-3.5" />
+              Ask Sahayak AI
+            </Link>
+          </Button>
+        </div>
+      </div>
+
+      {/* Demo Warning if applicable */}
+      {s.is_demo && (
+        <div className="flex items-center gap-3 rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-xs font-medium text-destructive">
+          <AlertTriangle className="h-5 w-5 shrink-0" />
+          <div>
+            <p className="font-bold uppercase tracking-wider">Demo Academic Prototype Entry</p>
+            <p className="mt-0.5 text-destructive/90">
+              This is a demonstration entry created for college project evaluation and does not represent an active government funding call.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Header Info */}
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="rounded-md bg-primary/15 px-2.5 py-0.5 text-xs font-bold text-primary capitalize">
+            {s.level} Government
+          </span>
+          <span className="rounded-md bg-muted px-2.5 py-0.5 text-xs font-semibold text-muted-foreground">
+            {s.sector}
+          </span>
+          {isAi && (
+            <span className="rounded-md bg-saffron/20 px-2.5 py-0.5 text-xs font-bold text-amber-900 dark:text-amber-200 flex items-center gap-1">
+              <Cpu className="h-3 w-3" /> AI & Compute Initiative
+            </span>
+          )}
+          {s.last_verified && (
+            <span className="rounded-md bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-400 flex items-center gap-1 ml-auto">
+              <CheckCircle2 className="h-3 w-3" /> Verified: {s.last_verified}
+            </span>
+          )}
+        </div>
+
+        <h1 className="text-3xl font-extrabold tracking-tight sm:text-5xl text-foreground">
+          {s.title}
+        </h1>
+
+        <p className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+          <Building className="h-4 w-4" />
+          <span>{s.ministry || "Government Department"}</span>
+          {s.state_name ? ` · State of ${s.state_name}` : ""}
+        </p>
+
+        {/* Target Beneficiary badges */}
+        <div className="flex flex-wrap gap-2 pt-2">
+          {s.beneficiary_types?.map((b) => (
+            <span
+              key={b}
+              className="rounded-full border bg-card px-3 py-1 text-xs font-semibold text-foreground capitalize shadow-xs"
+            >
+              {b}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* Quick Metrics Grid */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="rounded-xl border bg-card p-4 shadow-sm space-y-1">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+            <Building className="h-3.5 w-3.5 text-primary" /> Authority
+          </span>
+          <p className="font-semibold text-sm text-foreground truncate">{s.ministry || s.level}</p>
+        </div>
+
+        <div className="rounded-xl border bg-card p-4 shadow-sm space-y-1">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+            <Users className="h-3.5 w-3.5 text-primary" /> Target Group
+          </span>
+          <p className="font-semibold text-sm text-foreground truncate capitalize">
+            {s.beneficiary_types?.join(", ") || "Citizens"}
+          </p>
+        </div>
+
+        <div className="rounded-xl border bg-card p-4 shadow-sm space-y-1">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+            <Wallet className="h-3.5 w-3.5 text-primary" /> Income Limit
+          </span>
+          <p className="font-semibold text-sm text-foreground">
+            {s.max_annual_income ? `Up to ₹${s.max_annual_income.toLocaleString("en-IN")}` : "No ceiling stated"}
+          </p>
+        </div>
+
+        <div className="rounded-xl border bg-card p-4 shadow-sm space-y-1">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+            <Calendar className="h-3.5 w-3.5 text-primary" /> Age Eligibility
+          </span>
+          <p className="font-semibold text-sm text-foreground">
+            {s.min_age || s.max_age
+              ? `${s.min_age ?? 0} to ${s.max_age ?? "Any"} years`
+              : "No specific age limit"}
+          </p>
+        </div>
+      </div>
+
+      {/* Detailed Content Sections */}
+      <div className="grid gap-8 lg:grid-cols-[1fr_320px]">
+        <div className="space-y-8">
+          {/* Overview */}
+          <section className="rounded-2xl border bg-card p-6 shadow-sm space-y-3">
+            <h2 className="text-xl font-bold flex items-center gap-2">
+              <Info className="h-5 w-5 text-primary" />
+              Programme Overview
+            </h2>
+            <p className="text-sm leading-relaxed text-muted-foreground">{s.summary}</p>
+          </section>
+
+          {/* Benefits */}
+          <section className="rounded-2xl border border-primary/20 bg-primary/5 p-6 shadow-sm space-y-3">
+            <h2 className="text-xl font-bold text-primary flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-primary" />
+              Key Support & Benefits
+            </h2>
+            <p className="text-sm leading-relaxed text-foreground/90 font-medium">{s.benefits}</p>
+          </section>
+
+          {/* Eligibility Details */}
+          <section className="rounded-2xl border bg-card p-6 shadow-sm space-y-4">
+            <h2 className="text-xl font-bold flex items-center gap-2">
+              <Scale className="h-5 w-5 text-primary" />
+              Who May Be Eligible
+            </h2>
+            <p className="text-sm leading-relaxed text-muted-foreground">{s.eligibility}</p>
+
+            {/* Structured Criteria Checklist */}
+            <div className="grid gap-2 pt-2 sm:grid-cols-2 text-xs">
+              <div className="rounded-lg border bg-muted/40 p-3">
+                <span className="font-semibold text-foreground">Target Genders: </span>
+                <span className="text-muted-foreground capitalize">
+                  {s.genders?.length ? s.genders.join(", ") : "All genders"}
+                </span>
+              </div>
+              <div className="rounded-lg border bg-muted/40 p-3">
+                <span className="font-semibold text-foreground">Social Categories: </span>
+                <span className="text-muted-foreground capitalize">
+                  {s.social_categories?.length ? s.social_categories.join(", ") : "All categories"}
+                </span>
+              </div>
+              <div className="rounded-lg border bg-muted/40 p-3">
+                <span className="font-semibold text-foreground">Eligible Occupations: </span>
+                <span className="text-muted-foreground capitalize">
+                  {s.occupations?.length ? s.occupations.join(", ") : "General public / all"}
+                </span>
+              </div>
+              <div className="rounded-lg border bg-muted/40 p-3">
+                <span className="font-semibold text-foreground">Residence Type: </span>
+                <span className="text-muted-foreground capitalize">{s.residence || "Rural & Urban"}</span>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        {/* Sidebar Action Card */}
+        <aside className="space-y-6">
+          <div className="rounded-2xl border bg-card p-6 shadow-card space-y-5 lg:sticky lg:top-24">
+            <h3 className="font-bold text-base border-b pb-3">Official Application</h3>
+
+            {s.official_url ? (
+              <div className="space-y-4">
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Applications must be filed directly on the designated government portal. NAGSI does not process or accept grant submissions.
+                </p>
+
+                <Button asChild size="lg" className="w-full gap-2 shadow-sm font-semibold">
+                  <a href={s.official_url} target="_blank" rel="noreferrer">
+                    Apply on Official Portal
+                    <ExternalLink className="h-4 w-4" />
+                  </a>
+                </Button>
+
+                <div className="text-[11px] text-muted-foreground space-y-1 pt-1">
+                  <p>
+                    <strong>Portal:</strong> {new URL(s.official_url).hostname}
+                  </p>
+                  <p>
+                    <strong>Verified:</strong> {s.last_verified || "Verified via official notification"}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Fictional academic demonstration entry — no live application portal.
+              </p>
+            )}
+
+            <div className="pt-4 border-t space-y-3">
+              <div className="rounded-xl border border-saffron/30 bg-saffron/10 p-3.5 space-y-2">
+                <p className="text-xs font-semibold text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
+                  <Sparkles className="h-4 w-4 text-saffron" />
+                  Have Questions?
+                </p>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  Ask Sahayak about documents needed, eligibility guidelines, or similar alternative schemes.
+                </p>
+                <Button asChild size="sm" variant="outline" className="w-full text-xs h-8 bg-card">
+                  <Link to="/assistant">Chat with Sahayak</Link>
+                </Button>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </article>
+  );
+}
