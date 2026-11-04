@@ -1,13 +1,31 @@
 import { queryOptions } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
+
+type SchemeRow = Database["public"]["Tables"]["schemes"]["Row"];
+
+// The Supabase REST API caps every response at 1000 rows, so page until exhausted.
+async function fetchAllPublishedSchemes(): Promise<SchemeRow[]> {
+  const pageSize = 1000;
+  const rows: SchemeRow[] = [];
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await supabase
+      .from("schemes")
+      .select("*")
+      .eq("status", "published")
+      .order("is_demo")
+      .order("title")
+      .range(from, from + pageSize - 1);
+    if (error) throw error;
+    rows.push(...(data ?? []));
+    if (!data || data.length < pageSize) break;
+  }
+  return rows;
+}
 
 export const schemesQuery = queryOptions({
   queryKey: ["schemes"],
-  queryFn: async () => {
-    const { data, error } = await supabase.from("schemes").select("*").eq("status", "published").order("is_demo").order("title");
-    if (error) throw error;
-    return data;
-  },
+  queryFn: fetchAllPublishedSchemes,
 });
 
 export const schemeQuery = (slug: string) =>

@@ -6,6 +6,8 @@ import viteTsConfigPaths from "vite-tsconfig-paths";
 import { nitro } from "nitro/vite";
 
 export default defineConfig({
+  // Set dev server port to 8080 as requested
+  server: { port: 8080 },
   plugins: [
     viteTsConfigPaths({ projects: ["./tsconfig.json"] }),
     tailwindcss(),
